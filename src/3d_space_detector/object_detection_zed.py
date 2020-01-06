@@ -1,23 +1,20 @@
-import numpy as np
 import os
-import six.moves.urllib as urllib
 import sys
-import tensorflow as tf
-import collections
-import statistics
+import cv2
 import math
 import tarfile
 import os.path
-import basic_movement as basis
-# import lidar
+import statistics
+import collections
 
-from threading import Lock, Thread
-from time import sleep
-
-import cv2
-
-# ZED imports
+import numpy as np
 import pyzed.sl as sl
+import tensorflow as tf
+import basic_movement as basis
+import six.moves.urllib as urllib
+
+from time import sleep
+from threading import Lock, Thread
 
 sys.path.append('utils')
 
@@ -26,6 +23,7 @@ from object_detection.utils import ops as utils_ops
 from object_detection.utils import label_map_util
 from object_detection.utils import visualization_utils as vis_util
 
+# Initial Setup
 class vars_of_interest():
     def __init__(self):
         self.coord = []
@@ -35,9 +33,7 @@ class vars_of_interest():
 
 voi = vars_of_interest()
 zed_pose = sl.Pose()
-
 debug = sys.argv[1]
-
 zed_robot = basis.essentials(debug)
 
 def load_image_into_numpy_array(image):
@@ -81,10 +77,6 @@ def capture_thread_func():
     # Open the camera
     err = zed.open(init_params)
 
-    tracking_parameters = sl.TrackingParameters(sl.Transform())
-    tracking_parameters.enable_spatial_memory = True
-    err = zed.enable_tracking(tracking_parameters)
-
     while err != sl.ERROR_CODE.SUCCESS:
         err = zed.open(init_params)
         print(err)
@@ -104,42 +96,6 @@ def capture_thread_func():
             depth_np_global = load_depth_into_numpy_array(depth_mat)
             new_data = True
             lock.release()
-
-            # For spatial tracking
-            tracking_state = zed.get_position(zed_pose, sl.REFERENCE_FRAME.REFERENCE_FRAME_WORLD)
-
-            if tracking_state == sl.TRACKING_STATE.TRACKING_STATE_OK:
-                # Getting spatial position
-                py_translation = sl.Translation()
-                tx = round(zed_pose.get_translation(py_translation).get()[0], 2)
-                ty = round(zed_pose.get_translation(py_translation).get()[1], 2)
-                tz = round(zed_pose.get_translation(py_translation).get()[2], 2)
-
-                # Getting spatial orientation
-                py_orientation = sl.Orientation()
-                ox = round(zed_pose.get_orientation(py_orientation).get()[0], 2)
-                oy = round(zed_pose.get_orientation(py_orientation).get()[1], 2)
-                oz = round(zed_pose.get_orientation(py_orientation).get()[2], 2)
-                ow = round(zed_pose.get_orientation(py_orientation).get()[3], 2)
-
-                # Getting spatial orientation
-                rotation = zed_pose.get_rotation_vector()
-                rx = round(rotation[0], 2)
-                ry = round(rotation[1], 2)
-                rz = round(rotation[2], 2)
-
-                rx *= (180/math.pi)
-                ry *= (180/math.pi)
-                rz *= (180/math.pi)
-
-                rx = round(rx, 2)
-                ry = round(ry, 2)
-                rz = round(rz, 2)
-
-                # Storing some position data    
-                voi.coord = [tx, ty, tz]
-                voi.rotation = [rx, ry, rz]
-                voi.orientation = [ox, oy, oz, ow]
 
         sleep(0.01)
 
@@ -280,13 +236,7 @@ def main():
                 image_np, voi.target_list = display_objects_distances(image_np, depth_np, num_detections_, np.squeeze(boxes), np.squeeze(classes).astype(np.int32), np.squeeze(scores), category_index)
                 
                 # Triggering robot
-                zed_robot.set_ang_and_vel(voi.target_list, voi.coord[:2], voi.rotation[2] + 90)
-
-                #read lidar
-                # lidar_points = lidar.read()
-                
-                #print(depth_np_global[50][50])
-                # print(lidar_points)
+                zed_robot.set_ang_and_vel(voi.target_list, voi.coord[:2], voi.rotation)
 
                 # Displaying image through OpenCV
                 cv2.imshow('ZED object detection', cv2.resize(image_np, (width, height)))

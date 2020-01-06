@@ -32,3 +32,12 @@
    - Controller_node:
      - Transforma as velocidades em passos/segundo*
      - Aciona os motores
+
+-> Hardware 
+ 	-Enconder
+	-Acelerometro
+	-motores
+	-Sensor de corrente
+	-Nivel de Bateria
+
+   
